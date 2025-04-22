@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Racing Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            margin-bottom: 20px;
+            border: 2px solid #333;
+            background-color: #000;
+        }
+        
+        #game-screen {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        #controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .record-btn {
+            background-color: #f44336;
+        }
+        
+        .record-btn:hover {
+            background-color: #d32f2f;
+        }
+        
+        .save-btn {
+            background-color: #2196F3;
+        }
+        
+        .save-btn:hover {
+            background-color: #0b7dda;
+        }
+        
+        .discard-btn {
+            background-color: #ff9800;
+        }
+        
+        .discard-btn:hover {
+            background-color: #e68a00;
+        }
+        
+        .restart-btn {
+            background-color: #9c27b0;
+        }
+        
+        .restart-btn:hover {
+            background-color: #7b1fa2;
+        }
+        
+        #save-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+            width: 800px;
+        }
+        
+        #recording-name {
+            flex-grow: 1;
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        #telemetry {
+            width: 800px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        #instructions {
+            width: 800px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        #overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+        #recording-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(255,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            display: none;
+            display: flex;
+            align-items: center;
+        }
+        
+        #recording-status-icon {
+            margin-left: 5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: white;
+            display: inline-block;
+        }
+        
+        .recording-blink {
+            animation: blink 1s infinite;
+        }
+        
+        .pause-icon {
+            width: 8px;
+            height: 8px;
+            display: inline-flex;
+            margin-left: 5px;
+        }
+        
+        .pause-icon::before, .pause-icon::after {
+            content: "";
+            width: 3px;
+            height: 8px;
+            background-color: white;
+            margin: 0 1px;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        #recording-frame-info {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .key-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin: 0 5px;
+            border: 1px solid #ccc;
+            text-align: center;
+            line-height: 20px;
+            font-weight: bold;
+        }
+        
+        .key-active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        #keyboard-shortcuts {
+            margin-top: 10px;
+        }
+        
+        #keyboard-shortcuts div {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        
+        .shortcut-key {
+            display: inline-block;
+            background-color: #eee;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 2px 6px;
+            font-family: monospace;
+            margin-right: 5px;
+        }
+
+        /* Auto mode styles */
+        #auto-mode-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+            width: 800px;
+        }
+        
+        #agent-selector {
+            flex-grow: 1;
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        .auto-btn {
+            background-color: #673ab7;
+        }
+        
+        .auto-btn:hover {
+            background-color: #512da8;
+        }
+        
+        .auto-btn:disabled {
+            background-color: #b0b0b0;
+        }
+        #agent-refresh-indicator {
+            margin-left: 10px;
+            color: #666;
+            font-size: 0.8em;
+        }
+        .agent-refresh-loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #pause-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        #pause-sign {
+            font-size: 150px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
+            opacity: 0.8;
+        }
+        #agent-refresh-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin-left: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        
+        #agent-refresh-btn:hover {
+            background-color: #1976D2;
+        }
+        
+        #agent-refresh-btn:disabled {
+            background-color: #B0B0B0;
+            cursor: not-allowed;
+        }
+
+        #env-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+            width: 800px;
+        }
+        
+        #env-selector {
+            flex-grow: 1;
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        #agent-refresh-btn i {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Racing Game</h1>
+    
+    <div id="game-container">
+        <img id="game-screen" src="" alt="Game screen">
+        <div id="pause-overlay">
+            <div id="pause-sign">❚❚</div>
+        </div>
+        <div id="overlay">
+            Steering: <span id="steering-value" style="white-space: pre-wrap;">0.000</span><br>
+            Throttle: <span id="throttle-value" style="white-space: pre-wrap;">0.000</span><br>
+            Active Keys: 
+            <span class="key-indicator" id="key-w">W</span>
+            <span class="key-indicator" id="key-a">A</span>
+            <span class="key-indicator" id="key-s">S</span>
+            <span class="key-indicator" id="key-d">D</span>
+        </div>
+        <div id="recording-indicator" style="visibility: hidden">
+            <span id="recording-text">REC</span>
+            <span id="recording-status-icon" class="recording-blink"></span>
+        </div>
+        <div id="recording-frame-info">
+            Recorded Frames: <span id="frames-count">0</span> | 
+            Time: <span id="recording-time">00:00.00</span>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <button id="reset-btn">Reset Game</button>
+        <button id="manual-btn">Manual Control</button>
+        <button id="restart-btn" class="restart-btn" disabled>Restart Recording</button>
+        <button id="discard-btn" class="discard-btn" disabled>Discard Last Session</button>
+    </div>
+    
+    <div id="env-controls">
+        <label for="env-selector">Environment:</label>
+        <select id="env-selector">
+            <option value="CarRacing" selected>CarRacing</option>
+            <option value="MountainCar">MountainCar</option>
+        </select>
+    </div>
+
+    <div id="save-controls">
+        <label for="recording-name">Recording Name:</label>
+        <input type="text" id="recording-name" placeholder="Enter a name for your recording">
+        <button id="save-btn" class="save-btn" disabled>Save Recording</button>
+    </div>
+
+    <div id="auto-mode-controls">
+        <label for="agent-selector">Select Agent:</label>
+        <select id="agent-selector">
+            <option value="">Select an agent:</option>
+        </select>
+        <button id="agent-refresh-btn">
+            Refresh Agents
+        </button>
+        <button id="auto-mode-btn" class="auto-btn">Enable Auto Mode</button>
+        <span id="agent-refresh-indicator">✓</span>
+    </div>
+    
+    <div id="telemetry">
+        <h3>Telemetry & Recording</h3>
+        <p>Use WASD keys for control:</p>
+        <ul>
+            <li>W: Accelerate (Increase Throttle)</li>
+            <li>S: Brake/Reverse (Decrease Throttle)</li>
+            <li>A: Steer Left</li>
+            <li>D: Steer Right</li>
+        </ul>
+        <div id="keyboard-shortcuts">
+            <div><span class="shortcut-key">SPACE</span> Pause/Resume</div>
+            <div><span class="shortcut-key">R</span> Reset Game</div>
+            <div><span class="shortcut-key">E</span> Enable/Disable Auto Mode</div>
+        </div>
+        <p>Last key pressed takes priority.</p>
+        <p>Recording: The game automatically records all frames. Use the buttons to save or discard recordings.</p>
+        <p>Status: <span id="status">Disconnected</span></p>
+    </div>
+    
+    <div id="instructions">
+        <h3>Instructions</h3>
+        <p>1. Click "Reset Game" to start a new game and begin recording (or press 'R').</p>
+        <p>2. Control the car with the keys as described above.</p>
+        <p>3. Press SPACE to pause/resume the game.</p>
+        <p>4. Enter a name and click "Save Recording" to save the current session to disk.</p>
+        <p>5. Click "Discard Last Session" to discard the current session if you're not happy with it.</p>
+        <p>6. Click "Restart Recording" to discard the entire recording and start fresh.</p>
+        <p>7. For Auto Mode, select an agent from the dropdown and click "Enable Auto Mode".</p>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:8000'; // Adjust if your API uses a different port
+        const UPDATE_RATE = 33.33; // milliseconds between updates
+        
+        // Game state
+        let gameRunning = false;
+        let steering = 0.0; // -1.0 to 1.0
+        let throttle = 0.0; // -1.0 to 1.0
+        let updateInterval = null;
+        let framesCount = 0;
+        let startTime = null;
+        let elapsedTime = 0;
+        let currentEnv = "CarRacing";
+        let recordingTimerInterval = null;
+        let isPaused = false;
+        
+        // DOM elements
+        const gameScreen = document.getElementById('game-screen');
+        const resetBtn = document.getElementById('reset-btn');
+        const manualBtn = document.getElementById('manual-btn');
+        const discardBtn = document.getElementById('discard-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const recordingNameInput = document.getElementById('recording-name');
+        var statusEl = document.getElementById('status');
+        const steeringValueEl = document.getElementById('steering-value');
+        const throttleValueEl = document.getElementById('throttle-value');
+        const framesCountEl = document.getElementById('frames-count');
+        const recordingTimeEl = document.getElementById('recording-time');
+        const recordingIndicator = document.getElementById('recording-indicator');
+        const recordingText = document.getElementById('recording-text');
+        const recordingStatusIcon = document.getElementById('recording-status-icon');
+        const agentRefreshIndicator = document.getElementById('agent-refresh-indicator');
+        const pauseOverlay = document.getElementById('pause-overlay');
+        const envSelector = document.getElementById('env-selector');
+        
+        // Auto mode elements
+        const agentSelector = document.getElementById('agent-selector');
+        const autoModeBtn = document.getElementById('auto-mode-btn');
+        let isAutoModeEnabled = false;
+        
+        // Key indicators
+        const keyIndicators = {
+            'w': document.getElementById('key-w'),
+            'a': document.getElementById('key-a'),
+            's': document.getElementById('key-s'),
+            'd': document.getElementById('key-d')
+        };
+        
+        // Event listeners
+        resetBtn.addEventListener('click', resetGame);
+        manualBtn.addEventListener('click', toggleManualControl);
+        discardBtn.addEventListener('click', discardLastSession);
+        saveBtn.addEventListener('click', saveRecording);
+        restartBtn.addEventListener('click', restartRecording);
+        
+        // Auto mode listeners
+        autoModeBtn.addEventListener('click', toggleAutoMode);
+        
+        // Track input field focus state
+        let inputFocused = false;
+        
+        // Set up focus event listeners for the input field
+        recordingNameInput.addEventListener('focus', function() {
+            inputFocused = true;
+        });
+        
+        recordingNameInput.addEventListener('blur', function() {
+            inputFocused = false;
+        });
+        
+        // Initialize keyboard controls
+        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keyup', handleKeyUp);
+
+        // Add environment selector event listener
+        envSelector.addEventListener('change', function() {
+            currentEnv = this.value;
+            updateTelemetryText(currentEnv);
+        });
+        
+        
+        // Key states with timestamps for determining last pressed
+        const keyStates = {
+            'w': { pressed: false, timestamp: 0 },
+            'a': { pressed: false, timestamp: 0 },
+            's': { pressed: false, timestamp: 0 },
+            'd': { pressed: false, timestamp: 0 }
+        };
+
+        function updateTelemetryText(envType) {
+            const telemetryEl = document.getElementById('telemetry');
+            statusText = statusEl.textContent;
+            if (envType === "CarRacing") {
+                telemetryEl.innerHTML = `
+                    <h3>Telemetry & Recording</h3>
+                    <p>Use WASD keys for control:</p>
+                    <ul>
+                        <li>W: Accelerate (Increase Throttle)</li>
+                        <li>S: Brake/Reverse (Decrease Throttle)</li>
+                        <li>A: Steer Left</li>
+                        <li>D: Steer Right</li>
+                    </ul>
+                    <div id="keyboard-shortcuts">
+                        <div><span class="shortcut-key">SPACE</span> Pause/Resume</div>
+                        <div><span class="shortcut-key">R</span> Reset Game</div>
+                        <div><span class="shortcut-key">E</span> Enable/Disable Auto Mode</div>
+                    </div>
+                    <p>Last key pressed takes priority.</p>
+                    <p>Recording: The game automatically records all frames. Use the buttons to save or discard recordings.</p>
+                    <p>Status: <span id="status">Disconnected</span></p>
+                `;
+                statusEl = document.getElementById('status');
+            } else if (envType === "MountainCar") {
+                telemetryEl.innerHTML = `
+                    <h3>Telemetry & Recording</h3>
+                    <p>Use AD keys for control:</p>
+                    <ul>
+                        <li>A: Apply negative force (left)</li>
+                        <li>D: Apply positive force (right)</li>
+                    </ul>
+                    <div id="keyboard-shortcuts">
+                        <div><span class="shortcut-key">SPACE</span> Pause/Resume</div>
+                        <div><span class="shortcut-key">R</span> Reset Game</div>
+                        <div><span class="shortcut-key">E</span> Enable/Disable Auto Mode</div>
+                    </div>
+                    <p>Last key pressed takes priority.</p>
+                    <p>Recording: The game automatically records all frames. Use the buttons to save or discard recordings.</p>
+                    <p>Status: <span id="status">Disconnected</span></p>
+                `;
+                // Update status element reference after DOM change
+                statusEl = document.getElementById('status');
+            }
+            statusEl.textContent = statusText;
+        }
+
+        async function loadAgents() {
+            const agentRefreshBtn = document.getElementById('agent-refresh-btn');
+            const agentRefreshIndicator = document.getElementById('agent-refresh-indicator');
+            
+            try {
+                // Disable the refresh button during loading
+                agentRefreshBtn.disabled = true;
+                agentSelector.disabled = true;
+                
+                // Show loading state
+                agentRefreshIndicator.style.display = 'inline';
+                agentRefreshIndicator.textContent = '🔄';
+                
+                const response = await fetch(`${API_BASE_URL}/list_agents`, {
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Clear existing options except the first one
+                while (agentSelector.options.length > 1) {
+                    agentSelector.remove(1);
+                }
+                
+                // Populate agent selector
+                data.agents.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent;
+                    option.textContent = agent;
+                    agentSelector.appendChild(option);
+                });
+                
+                // Success state
+                agentRefreshIndicator.textContent = '✓';
+                statusEl.textContent = `Loaded ${data.agents.length} agents`;
+                
+                return data.agents;
+                
+            } catch (error) {
+                console.error('Error loading agents:', error);
+                statusEl.textContent = `Error loading agents: ${error.message}`;
+                
+                // Error state
+                agentRefreshIndicator.textContent = '⚠️';
+                
+                throw error;
+            } finally {
+                // Re-enable buttons
+                agentRefreshBtn.disabled = false;
+                agentSelector.disabled = false;
+                
+                // Hide loading indicator after a short delay
+                setTimeout(() => {
+                    agentRefreshIndicator.style.display = 'none';
+                }, 2000);
+            }
+        }
+
+        // Add event listener to the new refresh button
+        document.getElementById('agent-refresh-btn').addEventListener('click', loadAgents);
+        loadAgents()
+        
+        // Functions
+        async function resetGame() {
+            try {
+                statusEl.textContent = 'Resetting game...';
+                
+                const response = await fetch(`${API_BASE_URL}/reset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ env: currentEnv })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+
+                if (data.image) {
+                    gameScreen.src = `data:image/jpeg;base64,${data.image}`;
+                    statusEl.textContent = 'Game reset successfully';
+                    gameRunning = true;
+                    
+                    // Reset controls
+                    steering = 0.0;
+                    throttle = 0.0;
+                    updateControlDisplay(0.0, 0.0);
+                    
+                    // Start update loop if not already running
+                    if (!updateInterval) {
+                        startUpdateLoop();
+                    }
+                    
+                    // Start recording
+                    startRecording();
+                }
+
+                const response_reset_pos = await fetch(`${API_BASE_URL}/set_reset_pos`, {
+                    method: 'POST'
+                });
+
+                if (!response_reset_pos.ok) {
+                    throw new Error(`HTTP error! Status: ${response_reset_pos.status}`);
+                }
+                
+            } catch (error) {
+                console.error('Error resetting game:', error);
+                statusEl.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        function toggleManualControl() {
+            if (gameRunning) {
+                if (updateInterval) {
+                    stopUpdateLoop();
+                    manualBtn.textContent = 'Resume Control';
+                    statusEl.textContent = 'Manual control paused';
+                    pauseRecordingTimer();
+                    isPaused = true;
+                    updateRecordingIndicator();
+                } else {
+                    startUpdateLoop();
+                    manualBtn.textContent = 'Pause Control';
+                    statusEl.textContent = 'Manual control active';
+                    resumeRecordingTimer();
+                    isPaused = false;
+                    updateRecordingIndicator();
+                }
+            } else {
+                statusEl.textContent = 'Please reset the game first';
+            }
+        }
+        
+        function startUpdateLoop() {
+            updateInterval = setInterval(updateGame, UPDATE_RATE);
+            manualBtn.textContent = 'Pause Control';
+        }
+        
+        function stopUpdateLoop() {
+            clearInterval(updateInterval);
+            updateInterval = null;
+            manualBtn.textContent = 'Resume Control';
+        }
+        
+        async function updateGame() {
+            if (!gameRunning) return;
+            
+            // Update controls based on key states with priority
+            processKeyStates();
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/step`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        steering: steering,
+                        throttle: throttle
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.image) {
+                    gameScreen.src = `data:image/jpeg;base64,${data.image}`;
+                    updateControlDisplay(data.steering, data.throttle)
+                    
+                    // Update status based on auto mode
+                    if (data.auto_mode) {
+                        statusEl.textContent = 'Running (Auto Mode)';
+                    } else {
+                        statusEl.textContent = 'Running';
+                    }
+                    
+                    updateFramesCount();
+                }
+            } catch (error) {
+                console.error('Error updating game:', error);
+                statusEl.textContent = `Error: ${error.message}`;
+                gameRunning = false;
+                stopUpdateLoop();
+                stopRecordingTimer();
+            }
+        }
+        
+        function handleKeyDown(event) {
+            const key = event.key.toLowerCase();
+            
+            // Handle special keys regardless of input focus status
+            if (key === ' ' || key === 'spacebar') { // Space key
+                // Only handle if game is running and not when typing in text fields
+                if (gameRunning && !inputFocused) {
+                    toggleManualControl();
+                    event.preventDefault();
+                    return;
+                }
+            }
+            
+            if (key === 'r') {
+                // Reset game with R key, only when not in text input
+                if (!inputFocused) {
+                    resetGame();
+                    event.preventDefault();
+                    return;
+                }
+            }
+
+            if (key === 'e') {
+                // Toggle auto mode with E key, only when not in text input
+                if (!inputFocused) {
+                    toggleAutoMode();
+                    event.preventDefault();
+                    return;
+                }
+            }
+            
+            // Skip processing normal game controls if input is focused
+            if (inputFocused && keyStates.hasOwnProperty(key)) {
+                return; // Allow the input to receive the key
+            }
+            
+            if (keyStates.hasOwnProperty(key)) {
+                keyStates[key].pressed = true;
+                keyStates[key].timestamp = Date.now();
+                updateKeyIndicator(key, true);
+                event.preventDefault();
+            }
+        }
+        
+        function handleKeyUp(event) {
+            const key = event.key.toLowerCase();
+            
+            // Special handling for space and r key
+            if (key === ' ' || key === 'spacebar' || key === 'r') {
+                // We already handled this in keyDown, no need for keyUp handling
+                if (!inputFocused) {
+                    event.preventDefault();
+                    return;
+                }
+            }
+            
+            // Skip processing game controls if input is focused
+            if (inputFocused && keyStates.hasOwnProperty(key)) {
+                return; // Allow the input to receive the key
+            }
+            
+            if (keyStates.hasOwnProperty(key)) {
+                keyStates[key].pressed = false;
+                updateKeyIndicator(key, false);
+                event.preventDefault();
+            }
+        }
+        
+        function updateKeyIndicator(key, isActive) {
+            if (keyIndicators[key]) {
+                if (isActive) {
+                    keyIndicators[key].classList.add('key-active');
+                } else {
+                    keyIndicators[key].classList.remove('key-active');
+                }
+            }
+        }
+        
+        function processKeyStates() {
+            // Reset values
+            steering = 0;
+            throttle = 0;
+            
+            // Handle steering (left/right) based on last pressed key
+            let lastSteeringTime = 0;
+            let steeringDirection = 0;
+            
+            if (keyStates['a'].pressed && keyStates['a'].timestamp > lastSteeringTime) {
+                lastSteeringTime = keyStates['a'].timestamp;
+                steeringDirection = -0.5;
+            }
+            
+            if (keyStates['d'].pressed && keyStates['d'].timestamp > lastSteeringTime) {
+                lastSteeringTime = keyStates['d'].timestamp;
+                steeringDirection = 0.5;
+            }
+            
+            // Apply steering
+            steering = steeringDirection;
+            
+            // Handle throttle (forward/backward) based on last pressed key
+            let lastThrottleTime = 0;
+            let throttleDirection = 0;
+            
+            if (keyStates['w'].pressed && keyStates['w'].timestamp > lastThrottleTime) {
+                lastThrottleTime = keyStates['w'].timestamp;
+                throttleDirection = 0.3;
+            }
+            
+            if (keyStates['s'].pressed && keyStates['s'].timestamp > lastThrottleTime) {
+                lastThrottleTime = keyStates['s'].timestamp;
+                throttleDirection = -0.3;
+            }
+            
+            // Apply throttle
+            throttle = throttleDirection;
+        }
+        
+        function updateControlDisplay(steering, throttle) {
+            steeringValueEl.textContent = (steering < 0 ? "" : " ") + steering.toFixed(3);
+            throttleValueEl.textContent = (throttle < 0 ? "" : " ") + throttle.toFixed(3);
+        }
+        
+        
+        async function toggleAutoMode() {
+            const selectedAgent = agentSelector.value;
+            
+            if (!selectedAgent) {
+                statusEl.textContent = 'Please select an agent first';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/auto_mode`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        agent_file: selectedAgent,
+                        enable: !isAutoModeEnabled
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Toggle auto mode state
+                isAutoModeEnabled = !isAutoModeEnabled;
+                updateRecordingIndicator();
+                
+                if (isAutoModeEnabled) {
+                    autoModeBtn.textContent = 'Disable Auto Mode';
+                    statusEl.textContent = `Auto mode enabled with agent: ${selectedAgent}`;
+                    agentSelector.disabled = true;
+                } else {
+                    autoModeBtn.textContent = 'Enable Auto Mode';
+                    statusEl.textContent = 'Auto mode disabled';
+                    agentSelector.disabled = false;
+                }
+                
+            } catch (error) {
+                console.error('Error toggling auto mode:', error);
+                statusEl.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Remaining recording and other functions...
+        
+        // Recording functions
+        async function updateFramesCount() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/get_frames_count`, {
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                framesCount = data.count || 0;
+                framesCountEl.textContent = framesCount;
+                
+                // Enable/disable buttons based on frames count
+                const hasFrames = framesCount > 0;
+                discardBtn.disabled = !hasFrames;
+                saveBtn.disabled = !hasFrames;
+                restartBtn.disabled = !hasFrames;
+                
+                // Update the time based on frames and UPDATE_RATE
+                updateRecordingTimeFromFrames();
+                
+            } catch (error) {
+                console.error('Error getting frames count:', error);
+            }
+        }
+        
+        async function discardLastSession() {
+            try {
+                statusEl.textContent = 'Discarding last session...';
+                
+                const response = await fetch(`${API_BASE_URL}/discard_last_session`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                statusEl.textContent = 'Last session discarded';
+                await updateFramesCount();
+                
+            } catch (error) {
+                console.error('Error discarding last session:', error);
+                statusEl.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function restartRecording() {
+            try {
+                statusEl.textContent = 'Restarting recording...';
+                
+                const response = await fetch(`${API_BASE_URL}/restart_recording`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                statusEl.textContent = 'Recording restarted successfully';
+                resetRecording();
+                startRecording();
+                
+            } catch (error) {
+                console.error('Error restarting recording:', error);
+                statusEl.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function saveRecording() {
+            try {
+                const recordingName = recordingNameInput.value.trim() || `recording_${Date.now()}`;
+                statusEl.textContent = `Saving recording as "${recordingName}"...`;
+                
+                const response = await fetch(`${API_BASE_URL}/save_recording`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: recordingName
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.filename) {
+                    statusEl.textContent = `Recording saved as ${data.filename}`;
+                } else {
+                    statusEl.textContent = `Recording saved as "${recordingName}"`;
+                }
+                
+            } catch (error) {
+                console.error('Error saving recording:', error);
+                statusEl.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        function startRecording() {
+            framesCount = 0;
+            framesCountEl.textContent = framesCount;
+            
+            recordingIndicator.style.display = 'flex';
+            isPaused = false;
+            updateRecordingIndicator();
+            startRecordingTimer();
+        }
+        
+        function resetRecording() {
+            framesCount = 0;
+            framesCountEl.textContent = framesCount;
+            discardBtn.disabled = true;
+            saveBtn.disabled = true;
+            restartBtn.disabled = true;
+            resetRecordingTimer();
+        }
+        
+        // Recording timer functions
+        function startRecordingTimer() {
+            startTime = Date.now();
+            elapsedTime = 0;
+            updateRecordingTimeFromFrames();
+            recordingTimerInterval = setInterval(updateRecordingTimeFromFrames, 100);
+        }
+        
+        function stopRecordingTimer() {
+            clearInterval(recordingTimerInterval);
+            recordingTimerInterval = null;
+        }
+        
+        function pauseRecordingTimer() {
+            if (startTime !== null) {
+                elapsedTime += Date.now() - startTime;
+                startTime = null;
+                stopRecordingTimer();
+            }
+        }
+        
+        function resumeRecordingTimer() {
+            if (startTime === null) {
+                startTime = Date.now();
+                recordingTimerInterval = setInterval(updateRecordingTimeFromFrames, 100);
+            }
+        }
+        
+        function resetRecordingTimer() {
+            startTime = null;
+            elapsedTime = 0;
+            updateRecordingTimeFromFrames();
+            stopRecordingTimer();
+        }
+        
+        function updateRecordingTimeFromFrames() {
+            // Calculate time based on frames and UPDATE_RATE
+            const totalSeconds = framesCount * (UPDATE_RATE / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            const hundredths = Math.floor((totalSeconds % 1) * 100);
+            
+            const formattedTime = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+            
+            recordingTimeEl.textContent = formattedTime;
+        }
+        
+        function updateRecordingIndicator() {
+            recordingIndicator.style.visibility = "visible"
+            if (isPaused || isAutoModeEnabled) {
+                recordingText.textContent = "PAUSED";
+                recordingStatusIcon.classList.remove('recording-blink');
+                recordingStatusIcon.innerHTML = '<span class="pause-icon"></span>';
+                recordingIndicator.style.backgroundColor = "rgba(255,165,0,0.7)"; // Orange for paused
+            } else {
+                recordingText.textContent = "REC";
+                recordingStatusIcon.classList.add('recording-blink');
+                recordingStatusIcon.innerHTML = '';
+                recordingIndicator.style.backgroundColor = "rgba(255,0,0,0.7)"; // Red for recording
+            }
+
+            if (isPaused) {
+                pauseOverlay.style.display = 'flex';
+            } else {
+                pauseOverlay.style.display = 'none';
+            }
+        }
+        
+        // Initial status
+        statusEl.textContent = 'Ready - Click "Reset Game" to start';
+        
+        // Check if backend is available
+        fetch(`${API_BASE_URL}/health`)
+            .then(response => {
+                if (response.ok) {
+                    statusEl.textContent = 'Connected - Ready to start';
+                }
+            })
+            .catch(error => {
+                statusEl.textContent = 'Backend not available. Check server status.';
+                console.error('Backend connection error:', error);
+            });
+    </script>
+</body>
+</html>

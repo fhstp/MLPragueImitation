@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imitation_workshop"
+authors = [
+    {name = "Tobias Kietreiber", email = "tobias.kietreiber@fhstp.ac.at"},
+    {name = "Alexander Buchelt", email = "alexander.buchelt@fhstp.ac.at"},
+]
+description = "Code for the 'Accelerating AI Through Human Knowledge: Teaching to Imitate Experts and Win on the Race Track' Workshop at ML Prague"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["imitation learning", "workshop", "IQLearn", "gym", "gymnasium"]
+dependencies = [
+    'swig',
+    'gymnasium[box2d]',
+    'numpy',
+    'stable_baselines3',
+    'tqdm',
+    'fastapi',
+    'uvicorn',
+    'pillow',
+    'numpy',
+    'tensorboard',
+    'rich',
+    'imitation_gym_wrappers @ git+https://git.nwt.fhstp.ac.at/lbkietreiber/imitation-gym-wrappers',
+]
+dynamic = ["version"]
