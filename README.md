@@ -3,7 +3,7 @@ Repository for the 'Accelerating AI Through Human Knowledge: Teaching to Imitate
 
 ## Running the Docker Container
 
-The container is available on dockerhub as `tkietreiber/mlprague-imitation` ((https://hub.docker.com/r/tkietreiber/mlprague-imitation)[Link]), you can run it with all necessary arguments via
+The container is available on dockerhub as `tkietreiber/mlprague-imitation` ([Link](https://hub.docker.com/r/tkietreiber/mlprague-imitation)), you can run it with all necessary arguments via
 ```bash
 docker run -itp 8000:8000 -v $(pwd)/recordings:/app/recordings -v $(pwd)/agents:/app/agents tkietreiber/mlprague-imitation
 ```
