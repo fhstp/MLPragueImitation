@@ -1,6 +1,10 @@
 # MLPragueImitation
 Repository for the 'Accelerating AI Through Human Knowledge: Teaching to Imitate Experts and Win on the Race Track' workshop at ML Prague 2025.
 
+## Link to Colab Notebook
+
+The notebook is already available in Google Colab under this [link](https://colab.research.google.com/drive/1rfh32YFculANOYOGzhwugWnqwQVN_giD?usp=sharing).
+
 ## Running the Docker Container
 
 The container is available on dockerhub as `tkietreiber/mlprague-imitation` ([Link](https://hub.docker.com/r/tkietreiber/mlprague-imitation)), you can run it with all necessary arguments via
