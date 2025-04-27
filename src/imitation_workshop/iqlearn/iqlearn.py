@@ -76,20 +76,23 @@ def layer_init(layer, bias_const=0.0):
 
 
 class SoftQNetwork(nn.Module):
-  def __init__(self, env):
-    super().__init__()
-    self.fc1 = nn.Linear(env.observation_space.shape[0]+env.action_space.shape[0], 32)
-    self.fc2 = nn.Linear(32, 32)
-    self.fc3 = nn.Linear(32, 32)
-    self.fc4 = nn.Linear(32, 1)
+    def __init__(self, env):
+        super().__init__()
+        self.fc1 = nn.Linear(
+            env.observation_space.shape[0] + env.action_space.shape[0], 32
+        )
+        self.fc2 = nn.Linear(32, 32)
+        self.fc3 = nn.Linear(32, 32)
+        self.fc4 = nn.Linear(32, 1)
 
-  def forward(self, x, a):
-    x = torch.cat([x,a], 1)
-    x = F.relu(self.fc1(x))
-    x = F.relu(self.fc2(x))
-    x = F.relu(self.fc3(x))
-    x = self.fc4(x)
-    return x
+    def forward(self, x, a):
+        x = torch.cat([x, a], 1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = self.fc4(x)
+        return x
+
 
 LOG_STD_MAX = 2
 LOG_STD_MIN = -5
@@ -139,7 +142,7 @@ class Actor(nn.Module):
 
         return mean, log_std
 
-    def get_action(self, x):
+    def get_action(self, x, bias_actor=None):
         mean, log_std = self(x)
         std = log_std.exp()
         normal = torch.distributions.Normal(mean, std)
@@ -151,13 +154,25 @@ class Actor(nn.Module):
         log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + 1e-6)
         log_prob = log_prob.sum(1, keepdim=True)
         mean = torch.tanh(mean) * self.action_scale + self.action_bias
+
+        if bias_actor is not None:
+            mean, log_std = bias_actor(x)
+            std = log_std.exp()
+            bias_normal = torch.distributions.Normal(mean, std)
+            bias_log_prob = bias_normal.log_prob(x_t)
+            # Enforcing Action Bound
+            bias_log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + 1e-6)
+            log_prob -= bias_log_prob.sum(1, keepdim=True)
         return action, log_prob, mean
+
 
 def default_phi(x):
     return x
 
+
 def default_regularizer(x):
-    return x**2/10
+    return x**2 / 10
+
 
 class IQLearn:
     def __init__(
@@ -166,7 +181,7 @@ class IQLearn:
         phi: Callable[[torch.Tensor], torch.Tensor] | None = None,
         regularizer: Callable[[torch.Tensor], torch.Tensor] | None = None,
         online_size: int = 256,
-        actor_net: nn.Module|None = None,
+        actor_net: nn.Module | None = None,
         q_cls: type = SoftQNetwork,
         sac_args: Args | dict[str, Any] | None = None,
     ):
@@ -179,7 +194,7 @@ class IQLearn:
 
         self.online_size = online_size
         self.demonstration_buffer = None
-        
+
         self.set_env(env)
 
         if phi is None:
@@ -191,7 +206,6 @@ class IQLearn:
         else:
             self.regularizer = regularizer
 
-        run_name = f"{env.spec.id if env.spec is not None else ''}__{self.args.exp_name}__{self.args.seed}__{int(time.time())}"
         if self.args.track:
             import wandb
 
@@ -200,20 +214,12 @@ class IQLearn:
                 entity=self.args.wandb_entity,
                 sync_tensorboard=True,
                 config=vars(self.args),
-                name=run_name,
+                name=self.run_name,
                 monitor_gym=True,
                 save_code=True,
             )
-        self.writer = SummaryWriter(f"runs/{run_name}")
-        self.writer.add_text(
-            "hyperparameters",
-            "|param|value|\n|-|-|\n%s"
-            % (
-                "\n".join(
-                    [f"|{key}|{value}|" for key, value in vars(self.args).items()]
-                )
-            ),
-        )
+
+        self.setup_writer()
 
         # TRY NOT TO MODIFY: seeding
         random.seed(self.args.seed)
@@ -229,6 +235,7 @@ class IQLearn:
         ), "only continuous observation space is supported"
 
         self.actor = Actor(self.env, actor_net).to(self.args.device)
+        self.bias_actor = None
         self.qf1 = q_cls(self.env).to(self.args.device)
         self.qf2 = q_cls(self.env).to(self.args.device)
         if self.args.use_targets:
@@ -239,12 +246,6 @@ class IQLearn:
         else:
             self.qf1_target = self.qf1
             self.qf2_target = self.qf2
-        self.q_optimizer = optim.Adam(
-            list(self.qf1.parameters()) + list(self.qf2.parameters()), lr=self.args.q_lr
-        )
-        self.actor_optimizer = optim.Adam(
-            list(self.actor.parameters()), lr=self.args.policy_lr
-        )
 
         # Automatic entropy tuning
         if self.args.autotune:
@@ -259,8 +260,29 @@ class IQLearn:
             self.a_optimizer = optim.Adam([self.log_alpha], lr=self.args.q_lr)
         else:
             self.alpha = self.args.alpha
+            self.a_optimizer = None
+        self.recreate_optimizers()
 
         self.env.observation_space.dtype = np.float32  # type: ignore
+        self.reset_replay_buffer()
+        self.start_time = time.time()
+
+        self.n_updates = 0
+
+    def set_bias_actor(self, actor):
+        self.bias_actor = actor
+
+    def recreate_optimizers(self):
+        self.q_optimizer = optim.Adam(
+            list(self.qf1.parameters()) + list(self.qf2.parameters()), lr=self.args.q_lr
+        )
+        self.actor_optimizer = optim.Adam(
+            list(self.actor.parameters()), lr=self.args.policy_lr
+        )
+        if self.args.autotune:
+            self.a_optimizer = optim.Adam([self.log_alpha], lr=self.args.q_lr)
+
+    def reset_replay_buffer(self):
         self.rb = ReplayBuffer(
             self.args.buffer_size,
             self.env.observation_space,
@@ -268,9 +290,24 @@ class IQLearn:
             self.args.device,
             handle_timeout_termination=False,
         )
-        self.start_time = time.time()
 
-        self.n_updates = 0
+    def set_env(self, env):
+        self.env = env
+        self.env = gym.wrappers.RecordEpisodeStatistics(self.env)  # type: ignore
+        self.setup_writer()
+
+    def setup_writer(self):
+        self.run_name = f"{self.env.spec.id if self.env is not None and self.env.spec is not None else ''}__{self.args.exp_name}__{self.args.seed}__{int(time.time())}"
+        self.writer = SummaryWriter(f"runs/{self.run_name}")
+        self.writer.add_text(
+            "hyperparameters",
+            "|param|value|\n|-|-|\n%s"
+            % (
+                "\n".join(
+                    [f"|{key}|{value}|" for key, value in vars(self.args).items()]
+                )
+            ),
+        )
 
     def set_env(self, env):
         self.env = env
@@ -483,10 +520,10 @@ class IQLearn:
         prediction = mean if deterministic else action
         prediction = prediction.detach().cpu().numpy()
         prediction = prediction[0]
-        return prediction, None # return None for consistency with sb3
+        return prediction, None  # return None for consistency with sb3
 
     def sac_learn(self, steps):
-        obs, _ = self.env.reset(seed=np.random.randint(2147483647))
+        obs, _ = self.env.reset()
         for _ in tqdm(range(steps)):
             # ALGO LOGIC: put action logic here
             # if self.n_updates < self.args.learning_starts:
@@ -503,8 +540,12 @@ class IQLearn:
             # TRY NOT TO MODIFY: record rewards for plotting purposes
             if termination or truncated:
                 if info is not None:
-                    self.writer.add_scalar("charts/episodic_return", info["episode"]["r"], self.n_updates)
-                    self.writer.add_scalar("charts/episodic_length", info["episode"]["l"], self.n_updates)
+                    self.writer.add_scalar(
+                        "charts/episodic_return", info["episode"]["r"], self.n_updates
+                    )
+                    self.writer.add_scalar(
+                        "charts/episodic_length", info["episode"]["l"], self.n_updates
+                    )
 
             # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
             self.rb.add(obs, next_obs, action, reward, termination, info)
@@ -512,17 +553,28 @@ class IQLearn:
             # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
             obs = next_obs
             if termination or truncated:
-                obs, _ = self.env.reset(seed=np.random.randint(2147483647))
+                obs, _ = self.env.reset()
 
             # ALGO LOGIC: training.
             if self.n_updates > self.args.learning_starts:
                 data = self.rb.sample(self.args.batch_size)
                 with torch.no_grad():
-                    next_state_actions, next_state_log_pi, _ = self.actor.get_action(data.next_observations)
-                    qf1_next_target = self.qf1_target(data.next_observations, next_state_actions)
-                    qf2_next_target = self.qf2_target(data.next_observations, next_state_actions)
-                    min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
-                    next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * self.args.gamma * (min_qf_next_target).view(-1)
+                    next_state_actions, next_state_log_pi, _ = self.actor.get_action(
+                        data.next_observations, self.bias_actor
+                    )
+                    qf1_next_target = self.qf1_target(
+                        data.next_observations, next_state_actions
+                    )
+                    qf2_next_target = self.qf2_target(
+                        data.next_observations, next_state_actions
+                    )
+                    min_qf_next_target = (
+                        torch.min(qf1_next_target, qf2_next_target)
+                        - self.alpha * next_state_log_pi
+                    )
+                    next_q_value = data.rewards.flatten() + (
+                        1 - data.dones.flatten()
+                    ) * self.args.gamma * (min_qf_next_target).view(-1)
 
                 qf1_a_values = self.qf1(data.observations, data.actions).view(-1)
                 qf2_a_values = self.qf2(data.observations, data.actions).view(-1)
@@ -535,14 +587,19 @@ class IQLearn:
                 qf_loss.backward()
                 self.q_optimizer.step()
 
-                if self.n_updates % self.args.policy_frequency == 0:  # TD 3 Delayed update support
+                if (
+                    self.n_updates % self.args.policy_frequency == 0
+                ):  # TD 3 Delayed update support
                     for _ in range(
                         self.args.policy_frequency
                     ):  # compensate for the delay by doing 'actor_update_interval' instead of 1
-                        pi, log_pi, _ = self.actor.get_action(data.observations)
+                        pi, log_pi, _ = self.actor.get_action(
+                            data.observations, self.bias_actor
+                        )
                         qf1_pi = self.qf1(data.observations, pi)
                         qf2_pi = self.qf2(data.observations, pi)
                         min_qf_pi = torch.min(qf1_pi, qf2_pi)
+                        # actor_loss = (-min_qf_pi).mean()
                         actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()
 
                         self.actor_optimizer.zero_grad()
@@ -552,7 +609,9 @@ class IQLearn:
                         if self.args.autotune:
                             with torch.no_grad():
                                 _, log_pi, _ = self.actor.get_action(data.observations)
-                            alpha_loss = (-self.log_alpha.exp() * (log_pi + self.target_entropy)).mean()
+                            alpha_loss = (
+                                -self.log_alpha.exp() * (log_pi + self.target_entropy)
+                            ).mean()
 
                             self.a_optimizer.zero_grad()
                             alpha_loss.backward()
@@ -561,18 +620,40 @@ class IQLearn:
 
                 # update the target networks
                 if self.n_updates % self.args.target_network_frequency == 0:
-                    for param, target_param in zip(self.qf1.parameters(), self.qf1_target.parameters()):
-                        target_param.data.copy_(self.args.tau * param.data + (1 - self.args.tau) * target_param.data)
-                    for param, target_param in zip(self.qf2.parameters(), self.qf2_target.parameters()):
-                        target_param.data.copy_(self.args.tau * param.data + (1 - self.args.tau) * target_param.data)
+                    for param, target_param in zip(
+                        self.qf1.parameters(), self.qf1_target.parameters()
+                    ):
+                        target_param.data.copy_(
+                            self.args.tau * param.data
+                            + (1 - self.args.tau) * target_param.data
+                        )
+                    for param, target_param in zip(
+                        self.qf2.parameters(), self.qf2_target.parameters()
+                    ):
+                        target_param.data.copy_(
+                            self.args.tau * param.data
+                            + (1 - self.args.tau) * target_param.data
+                        )
 
                 if self.n_updates % 100 == 0:
-                    self.writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), self.n_updates)
-                    self.writer.add_scalar("losses/qf2_values", qf2_a_values.mean().item(), self.n_updates)
-                    self.writer.add_scalar("losses/qf1_loss", qf1_loss.item(), self.n_updates)
-                    self.writer.add_scalar("losses/qf2_loss", qf2_loss.item(), self.n_updates)
-                    self.writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, self.n_updates)
-                    self.writer.add_scalar("losses/actor_loss", actor_loss.item(), self.n_updates)
+                    self.writer.add_scalar(
+                        "losses/qf1_values", qf1_a_values.mean().item(), self.n_updates
+                    )
+                    self.writer.add_scalar(
+                        "losses/qf2_values", qf2_a_values.mean().item(), self.n_updates
+                    )
+                    self.writer.add_scalar(
+                        "losses/qf1_loss", qf1_loss.item(), self.n_updates
+                    )
+                    self.writer.add_scalar(
+                        "losses/qf2_loss", qf2_loss.item(), self.n_updates
+                    )
+                    self.writer.add_scalar(
+                        "losses/qf_loss", qf_loss.item() / 2.0, self.n_updates
+                    )
+                    self.writer.add_scalar(
+                        "losses/actor_loss", actor_loss.item(), self.n_updates
+                    )
                     self.writer.add_scalar("losses/alpha", self.alpha, self.n_updates)
                     self.writer.add_scalar(
                         "charts/SPS",
@@ -580,7 +661,9 @@ class IQLearn:
                         self.n_updates,
                     )
                     if self.args.autotune:
-                        self.writer.add_scalar("losses/alpha_loss", alpha_loss.item(), self.n_updates)
+                        self.writer.add_scalar(
+                            "losses/alpha_loss", alpha_loss.item(), self.n_updates
+                        )
             self.n_updates += 1
 
     def close(self):
@@ -589,8 +672,8 @@ class IQLearn:
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        del state['writer']
-        del state['env']
+        del state["writer"]
+        del state["env"]
         return state
 
     def __setstate__(self, state):
